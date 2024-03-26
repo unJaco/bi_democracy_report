@@ -1,133 +1,204 @@
----
-title: Welcome to Evidence
----
+# Government Officials Report
 
-_Build polished data products with SQL and Markdown_
-
-This demo [connects](/settings) to a local DuckDB file `needful_things.duckdb`.
-
-<LineChart
-  data={orders_by_month}
-  y=sales
-  yFmt=usd0k
-  title = "Sales by Month, USD"
-/>
-
-## Write in Markdown
-
-Evidence renders markdown files into web pages. This page is:
-`[project]/pages/index.md`.
-
-## Run SQL using Code Fences
-
-```sql orders_by_month
-select
-  date_trunc('month', order_datetime) as order_month,
-  count(*) as number_of_orders,
-  sum(sales) as sales,
-  sum(sales)/count(*) as average_order_value
-from orders
-where order_datetime >= '2020-01-01'
-group by 1 order by 1 desc
+```sql df_data
+SELECT * FROM df
 ```
 
-In your markdown file, you can include SQL queries in code fences. Evidence will run these queries through your database and return the results to the page.
-
-<Alert status=info>  
-To see the queries on a page, click the 3-dot menu at the top right of the page and Show Queries. You can see both the SQL and the query results by interacting with the query above.
-</Alert>
-
-## Visualize Data with Components
-
-### Value in Text
-
-Last month customers placed **<Value data={orders_by_month} column=number_of_orders/>** orders. The AOV was **<Value data={orders_by_month} column=average_order_value fmt=usd2/>**.
-
-### Big Value 
-<BigValue data={orders_by_month} value=sales fmt=usd0/>
-<BigValue data={orders_by_month} value=number_of_orders />
+```sql trust
+SELECT * FROM ng
+```
 
 
-### Bar Chart
+```sql tust_m_v
+SELECT Countries, 'High or moderately high trust' AS Measure, "High or moderately high trust" AS Value, 1 AS OrderCol FROM ng
+UNION ALL
+SELECT Countries, 'Neutral' AS Measure, "Neutral" AS Value, 2 AS OrderCol FROM ng
+UNION ALL
+SELECT Countries, 'Low or no trust' AS Measure, "Low or no trust" AS Value, 3 AS OrderCol FROM ng
+UNION ALL
+SELECT Countries, 'Do not know' AS Measure, "Don't know" AS Value, 4 AS OrderCol FROM ng
+ORDER BY OrderCol, Countries;
+
+```
+
+<script>
+
+$: trust_ng_min = Math.min(...grouped_data.filter(item => item.MEASURE === 'TRUST_NG' && item.VALUE !== null).map(item => item.VALUE));
+$: trust_ng_max = Math.max(...grouped_data.filter(item => item.MEASURE === 'TRUST_NG' && item.VALUE !== null).map(item => item.VALUE));
+$: trust_ng_avg = grouped_data.filter(item => item.MEASURE === 'TRUST_NG' && item.VALUE !== null).reduce((acc, item, _, array) => acc + item.VALUE / array.length, 0);
+
+$: trust_cl_min = Math.min(...grouped_data.filter(item => item.MEASURE === 'TRUST_CL' && item.VALUE !== null).map(item => item.VALUE));
+$: trust_cl_max = Math.max(...grouped_data.filter(item => item.MEASURE === 'TRUST_CL' && item.VALUE !== null).map(item => item.VALUE));
+$: trust_cl_avg = grouped_data.filter(item => item.MEASURE === 'TRUST_CL' && item.VALUE !== null).reduce((acc, item, _, array) => acc + item.VALUE / array.length, 0);
+
+$: trust_le_min = Math.min(...grouped_data.filter(item => item.MEASURE === 'TRUST_LE' && item.VALUE !== null).map(item => item.VALUE));
+$: trust_le_max = Math.max(...grouped_data.filter(item => item.MEASURE === 'TRUST_LE' && item.VALUE !== null).map(item => item.VALUE));
+$: trust_le_avg = grouped_data.filter(item => item.MEASURE === 'TRUST_LE' && item.VALUE !== null).reduce((acc, item, _, array) => acc + item.VALUE / array.length, 0);
+
+$: gpt_resp = "Loading explanation"
+
+</script>
+
+This is a report for **government officials** to get better insights into criticial metrics. <br>
+
+The goal is to visualize and report critical metrics in one central place to enable officials to see correlations between them and improve the metrics.
+
+## Trust in National Government
 
 <BarChart 
-  data={orders_by_month} 
-  x=order_month
-  y=number_of_orders 
-  fillColor="#488f96"
->
-  <ReferenceArea xMin="2020-03-15" xMax="2021-05-15" label="COVID Impacted" color=red/>
-</BarChart>
-
-> **Try:** Change the chart to a `<LineChart>`.
-
-### Data Table
-
-<DataTable data={orders_by_month} rows=6/>
-
-> **More:** See [all components](https://docs.evidence.dev/components/all-components)
-
-## Add Interactive Features
-
-The latest version of Evidence includes features that allow you to easily create interactive data visualizations.
-
-### Chart with Filter 
-
-```sql categories
-select
-    category
-from orders
-group by category
-```
-
-<Dropdown data={categories} name=category value=category>
-    <DropdownOption value="%" valueLabel="All Categories"/>
-</Dropdown>
-
-<Dropdown name=year>
-    <DropdownOption value=% valueLabel="All Years"/>
-    <DropdownOption value=2019/>
-    <DropdownOption value=2020/>
-    <DropdownOption value=2021/>
-</Dropdown>
-
-```sql orders_by_category
-select 
-    date_trunc('month', order_datetime) as month,
-    sum(sales) as sales_usd,
-    category
-from orders
-where category like '${inputs.category.value}'
-and date_part('year', order_datetime) like '${inputs.year.value}'
-group by all
-order by sales_usd desc
-```
-
-<BarChart
-    data={orders_by_category}
-    title="Sales by Month, {inputs.category.label}"
-    x=month
-    y=sales_usd
-    series=category
+    data={tust_m_v} 
+    x=Countries 
+    y=Value
+    series=Measure
+    sort=false
+    colorPalette={
+        [
+        '#cf0d06',
+        '#eb5752',
+        '#50bcf2',
+        '#b5a6a5',
+        ]
+    }
+    type=stacked100
 />
 
 
 
+## Take a look into Correlations
 
-# Share with Evidence Cloud
+To understand how the _Trust in National Governement_ correlates with other metrices select a metric in the dropdown.
 
-Evidence Cloud is the easiest way to securely share your project. 
+Press the _Explain_ Button to get more details.
 
-- Get your project online
-- Authenticate users
-- Schedule data refreshes
+```sql col_names
+SELECT column_name 
+FROM information_schema.columns 
+WHERE table_name = 'df' 
+AND column_name not like 'INDEX'
+AND column_name not like 'REF_AREA'
+AND column_name not like 'TIME_PERIOD'
+ORDER BY column_name
+```
 
-<BigLink href='https://du3tapwtcbi.typeform.com/waitlist?utm_source=template&typeform-source=template'>Deploy to Evidence Cloud &rarr;</BigLink>
+```sql trust_undefined
+SELECT REF_AREA FROM ${df_data}
+WHERE TRUST_NG is null
+```
 
-You can use Netlify, Vercel or another static hosting provider to [self-host Evidence](https://docs.evidence.dev/deployment/overview).
+<Dropdown
+    name=cor_val
+    data={col_names}
+    value=column_name
+/>
 
-# Get Support
+<LineChart 
+    data={df_data} 
+    x=REF_AREA 
+    y={inputs.cor_val.value}
+    y2='TRUST_NG'
+    y2SeriesType=bar
+/>
 
-- Message us on [Slack](https://slack.evidence.dev/)
-- Read the [Docs](https://docs.evidence.dev/)
-- Open an issue on [Github](https://github.com/evidence-dev/evidence)
+```sql correlation
+SELECT 
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'SAT_DEM') AS SAT_DEM,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'TRUST_CL') AS TRUST_CL,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'TRUST_LE') AS TRUST_LE,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'TRUST_NG') AS TRUST_NG,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'EMPW_PARL') AS EMPW_PARL,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'EMPW_SMP') AS EMPW_SMP,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'WBS') AS WBS,
+  (SELECT (TRUST_NG) FROM correlation_df WHERE MEASURE = 'PerWBSU5') AS PerWBSU5
+```
+
+The correlation between **Trust in National Government** and **{inputs.cor_val.value}** is <Value data={correlation} column={inputs.cor_val.value}/>.<br>
+
+
+<Details title='Trust in National Government is not identified for:'>
+
+{#each trust_undefined as entry}
+
+- {entry.REF_AREA}
+
+{/each}
+
+</Details>
+
+
+## Deep Dive
+```sql grouped_data
+SELECT REF_AREA, 'TRUST_NG' AS MEASURE, TRUST_NG AS VALUE
+FROM df 
+UNION ALL
+SELECT REF_AREA, 'TRUST_CL' AS MEASURE, TRUST_CL AS VALUE
+FROM df 
+UNION ALL
+SELECT REF_AREA, 'TRUST_LE' AS MEASURE, TRUST_LE AS VALUE
+FROM df
+ORDER BY REF_AREA, MEASURE
+```
+
+```sql grouped_country_data
+SELECT REF_AREA, MEASURE, VALUE, ${trust_ng_min} AS MIN, ${trust_ng_max} AS MAX, ${trust_ng_avg} AS AVG FROM ${grouped_data} WHERE REF_AREA LIKE '${inputs.ref_val.value}' AND MEASURE LIKE 'TRUST_NG'
+UNION ALL
+SELECT REF_AREA, MEASURE, VALUE, ${trust_cl_min} AS MIN, ${trust_cl_max} AS MAX, ${trust_cl_avg} AS AVG FROM ${grouped_data} WHERE REF_AREA LIKE '${inputs.ref_val.value}' AND MEASURE LIKE 'TRUST_CL'
+UNION ALL
+SELECT REF_AREA, MEASURE, VALUE, ${trust_le_min}MIN, ${trust_le_max} AS MAX, ${trust_le_avg} AS AVG FROM ${grouped_data} WHERE REF_AREA LIKE '${inputs.ref_val.value}' AND MEASURE LIKE 'TRUST_LE'
+ORDER BY REF_AREA, MEASURE
+```
+
+A deep dive into various trust metrices for the country. 
+Select the country you want to get an insight for.
+
+
+
+<Dropdown
+    name=ref_val
+    data={df_data}
+    value=REF_AREA
+/>
+<BoxPlot 
+    data={grouped_country_data}
+    name=MEASURE
+    midpoint=VALUE
+    intervalTop=MIN
+    intervalBottom=MAX
+/>
+
+### Set that into perspective
+
+```sql comparison_values
+SELECT 
+TRUST_NG, ${trust_ng_avg} AS NG_AVG, (TRUST_NG - NG_AVG) AS NG_DELTA, TRUST_CL, ${trust_cl_avg} as CL_AVG, (TRUST_CL - CL_AVG) AS CL_DELTA, TRUST_LE, ${trust_le_avg} as LE_AVG, (TRUST_LE - LE_AVG) AS LE_DELTA FROM df WHERE REF_AREA LIKE '${inputs.ref_val.value}'
+```
+
+<BigValue 
+  data={comparison_values}
+  title='Trust in National Government'
+  value=TRUST_NG
+  comparison=NG_DELTA
+  comparisonTitle="compared to avg"
+/>
+
+<BigValue 
+  data={comparison_values}
+  title='Trust in Courts and legal system'
+  value=TRUST_CL
+  comparison=CL_DELTA
+  comparisonTitle="compared to avg"
+/>
+
+<BigValue 
+  data={comparison_values}
+  title='Trust in legislature'
+  value=TRUST_LE
+  comparison=LE_DELTA
+  comparisonTitle="compared to avg"
+/>
+
+<br>
+<br>
+
+Do you want a [detailed report]({inputs.ref_val.value})?
+
+All data is from the [OECD DATA Explorer](https://data-explorer.oecd.org). <br>
